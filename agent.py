@@ -1,4 +1,3 @@
-# %%
 from langchain.chat_models import AzureChatOpenAI
 from langchain.schema import AIMessage, HumanMessage
 
@@ -31,6 +30,7 @@ class Agent:
             openai_api_version=config.OPENAI_API_VERSION,
             openai_api_type=config.OPENAI_API_TYPE,
             max_tokens=MAX_TOKENS_RESPONSE_GPT_35_TURBO,
+            temperature=0.0,
         )
 
         self.gpt_4 = AzureChatOpenAI(
@@ -40,6 +40,7 @@ class Agent:
             openai_api_version=config.OPENAI_API_VERSION,
             openai_api_type=config.OPENAI_API_TYPE,
             max_tokens=MAX_TOKENS_RESPONSE_GPT_4,
+            temperature=0.0,
         )
 
     def get_llm_props_from_model(self, model: str) -> tuple[AzureChatOpenAI, int, int]:
@@ -54,27 +55,15 @@ class Agent:
         """トークン数が最大値を超えているメッセージをトリムする"""
         # 現時点の token 数が max_tokens からレスポンスの最大トークン数を引いた値より大きい場合は、
         # 最も古いメッセージを削除する。
-        current_tokens = llm.get_num_tokens_from_messages(messages)
+        _messages = messages.copy()
+        current_tokens = llm.get_num_tokens_from_messages(_messages)
         while current_tokens > max_tokens - max_tokens_response:
-            messages.pop(0)
-            current_tokens = llm.get_num_tokens_from_messages(messages)
-        return messages
+            _messages.pop(0)
+            current_tokens = llm.get_num_tokens_from_messages(_messages)
+        return _messages
 
     def __call__(self, messages: list, model: str) -> str:
         llm, max_tokens, max_tokens_response = self.get_llm_props_from_model(model)
         messages = self.trim_messages(messages, max_tokens, max_tokens_response, llm)
         result = llm(messages=messages)
         return result.content
-
-
-messages = [
-    HumanMessage(content="質問1: あなたの生年月日を累乗したら？"),
-    AIMessage(content="質問1の答え"),
-    HumanMessage(content="あなたのGPTのversionは？"),
-    AIMessage(content="OpenAI"),
-    HumanMessage(content="続きを"),
-]
-agent = Agent()
-agent(messages=messages, model=GPT_4)
-
-# %%
